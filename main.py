@@ -18,72 +18,69 @@ l_motor = Motor(Port.A)
 r_motor = Motor(Port.B)
 
 # Sensor initialization
-l_color = ColorSensor(Port.S2)
-r_color = ColorSensor(Port.S1)
+l_color = ColorSensor(Port.S1)
+r_color = ColorSensor(Port.S2)
 
 # Constants
-Kp = 2
-Kd = 1.2
+WHEEL_DIAMETER = 55.5
+AXLE_TRACK = 160
 
-BLACK = 15
-WHITE = 75
+BLACK = 20
+WHITE = 70
+
+Kp = 1.2
+Kd = 5
 
 # Vars
 last_error = 0
-timer = time.time()
 
+robot = DriveBase(l_motor, r_motor, wheel_diameter=WHEEL_DIAMETER, axle_track=AXLE_TRACK)
 
-
-def PD_regulator(Speed):
+def PD(Speed):
 	""" PD regulator """
 
-    global last_error, timer, Kp, Kd
+	global last_error
 
-    error = l_color.reflection() - r_color.reflection()
+	error = l_color.reflection() - r_color.reflection()
 
-    l_motor.run(-1 * (Speed + (Kp * error + Kd * (error - last_error))))
-    r_motor.run(Speed - (Kp * error + Kd * (error - last_error)))
+	turn_rate = Kp * error + Kd * (error - last_error)
 
-    if (time.time() - timer) > 0.05:
-        timer = time.time()
-        last_error = error
+	last_error = error
+
+	robot.drive(-1 * Speed, turn_rate)
+
 
 def PD_time(Speed, Time):
-	""" PD regulator that works for provided Time """
+	""" PD controller that works for provided Time """
 
-    timing = time.time()
-    while time.time() - timing < Time:
-        PD_regulator(Speed)
+	timing = time.time()
+	while time.time() - timing < Time:
+		PD(Speed)
 
 
 def PD_line_T(Speed):
 	""" Movement on T like line """
 
-    while l_color.reflection() >= BLACK and r_color.reflection() >= BLACK:
-        PD_regulator(Speed)
-    l_motor.brake()
-    r_motor.brake()		
+	while l_color.reflection() >= BLACK and r_color.reflection() >= BLACK:
+		PD(Speed)
+	l_motor.brake()
+	r_motor.brake()
 
 
-def Move(L_speed, R_speed, L_angle, R_angle):
+def Turn_90(Speed, Direction):
+	""" Turn to left or right. left - 0, right - 1 """
 
-    l_motor.reset_angle(0)
-    r_motor.reset_angle(0)
-    r_flag = 1
-    l_flag = 1
+	l_motor.reset_angle()
+	r_motor.reset_angle()
 
-    while abs(l_motor.angle()) < abs(L_angle) or abs(r_motor.angle()) < abs(R_angle):
-        if abs(r_motor.angle()) > abs(R_angle):
-            r_flag = 0
-        if abs(l_motor.angle()) > abs(L_angle):
-            l_flag = 0
+	if Direction == 0:
+		l_motor.run_angle(Speed, 300, then=Stop.HOLD, wait=False)
+		r_motor.run_angle(-1 * Speed, -300, then=Stop.HOLD, wait=False)
+	else:
+		l_motor.run_angle(-1 * Speed, -300, then=Stop.HOLD, wait=False)
+		r_motor.run_angle(Speed, 300, then=Stop.HOLD, wait=False)	
 
-        l_motor.run(-1 * L_speed * l_flag)
-        r_motor.run(R_speed * r_flag)
 
 
 # <========Start=========>
 # 45 deg turn
-# Move(400, 400, 270, 40)
-# r_motor.stop()
-# l_motor.stop()
